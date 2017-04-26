@@ -33,13 +33,17 @@
 #include "remote.h"
 
 #define LED1TASKPRIO 1
+#define LED2TASKPRIO 1
 #define LED1TASKSTACKSIZE 128
+#define LED2TASKSTACKSIZE 128
+
 
 //Globales
 
 uint32_t g_ui32CPUUsage;
 uint32_t g_ulSystemClock;
-
+xQueueHandle QUEUE_GPIO;
+TaskHandle_t handle = NULL;
 extern void vUARTTask( void *pvParameters );
 
 
@@ -110,40 +114,86 @@ void vApplicationMallocFailedHook (void)
 //
 //*****************************************************************************
 
+static portTASK_FUNCTION(LEDTask,pvParameters)
+{
+
+    int32_t i32Estado_led=0;
+
+    //
+    // Bucle infinito, las tareas en FreeRTOS no pueden "acabar", deben "matarse" con la funcion xTaskDelete().
+    //
+    while(1)
+    {
+        i32Estado_led=!i32Estado_led;
+
+        if (i32Estado_led)
+        {
+            GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1 , GPIO_PIN_1);
+            vTaskDelay(0.1*configTICK_RATE_HZ);        //Espera del RTOS (eficiente, no gasta CPU)
+                                                     //Esta espera es de unos 100ms aproximadamente.
+        }
+        else
+        {
+            GPIOPinWrite(GPIO_PORTF_BASE,  GPIO_PIN_1,0);
+            vTaskDelay(2*configTICK_RATE_HZ);        //Espera del RTOS (eficiente, no gasta CPU)
+                                                   //Esta espera es de unos 2s aproximadamente.
+        }
+    }
+}
+
+// MLMM: Tarea que interpreta primer elemento de la FIFO y realiza tantas
+// Iteraciones como se hayan pasado por parámetros en funcion de los
+// Segundos y la frecuencia. Lo mismo se aplica a la frecuencia.
+void LEDTask2(void *pvParameters)
+{
+    uint32_t Recibido[2];
+    uint32_t Contador,SemiPeriodo;
+    //
+    // Bucle infinito, las tareas en FreeRTOS no pueden "acabar", deben "matarse" con la funcion xTaskDelete().
+    //
+    while(1)
+    {
+        if (xQueueReceive(QUEUE_GPIO,&Recibido,0)==pdTRUE){
+                // Suspendemos tarea del LED1TASK (la volveremos a llamar cuando haya un comando que lo active de nuevo)
+                vTaskSuspend(handle);
+                // Numero de veces que se enciende un LED sera
+                // Segundos * Frecuencia
+                Contador = Recibido[0] * Recibido[1];
+                // Tiempo de Semiperiodo = 1 / (f(hz) * 2 )
+                // NOTA: Se multiplica por 1000 y despues por 0.001 porque siendo uint32_t
+                // NO se pueden almacenar decimales y no se podría imprimir los milisegundos.
+                SemiPeriodo = 1000/(Recibido[1]*2);
+                UARTprintf("Activada alarma de %d segundos a %d Hz\n",Recibido[0],Recibido[1]);
+                GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1 , 0);
+
+                while(Contador>0){
+                    GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3 , GPIO_PIN_3);
+                    vTaskDelay(SemiPeriodo*0.001*configTICK_RATE_HZ);
+
+                    GPIOPinWrite(GPIO_PORTF_BASE,  GPIO_PIN_3,0);
+                    vTaskDelay(SemiPeriodo*0.001*configTICK_RATE_HZ);
+                    Contador--;
+                }
+                // Aqui se supone que se acaban de terminar los segundos
+                // Y se activa la alarma
+                UARTprintf("ALARMA\n");
+                // Aqui volvemos a desactivar tarea, ya que las especificaciones dice que una vez
+                // La alarma está activada el led rojo permanecerá encendido (y hemos podido "resumir"
+                // la tarea de parpadeo gpio rojo mientras estaba en cuenta atras la alarma)
+                vTaskSuspend(handle);
+                // Encedemos LED rojo por la fuerza
+                GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1 , GPIO_PIN_1);
+        }
+        // Esto es necesario ya que si no, el uP está todo el rato esperando (bucle infinito)
+        // A un caracter, y como esta espera es eficiente, pues resuelve nuestro problema.
+        vTaskDelay(configTICK_RATE_HZ); /// Esto equivale a un segundo.
+    }
+}
+
 // El codigo de esta tarea esta definida en el fichero command.c, es la que se encarga de procesar los comandos del interprete a traves
 // del terminal serie (puTTY)
 //Aqui solo la declaramos para poderla referenciar en la funcion main
 extern void vUARTTask( void *pvParameters );
-
-
-
-// Codigo de tarea de ejemplo: eliminar para la aplicacion final
-static portTASK_FUNCTION(LEDTask,pvParameters)
-		{
-
-	int32_t estado_led=0;
-
-	//
-	// Bucle infinito, las tareas en FreeRTOS no pueden "acabar", deben "matarse" con la funcion xTaskDelete().
-	//
-	while(1)
-	{
-		estado_led=!estado_led;
-
-		if (estado_led)
-		{
-			GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1 , GPIO_PIN_1);
-			vTaskDelay(0.1*configTICK_RATE_HZ);        //Espera del RTOS (eficiente, no gasta CPU)
-			//Esta espera es de unos 100ms aproximadamente.
-		}
-		else
-		{
-			GPIOPinWrite(GPIO_PORTF_BASE,  GPIO_PIN_1,0);
-			vTaskDelay(2*configTICK_RATE_HZ);        //Espera del RTOS (eficiente, no gasta CPU)
-			//Esta espera es de unos 2s aproximadamente.
-		}
-	}
-}
 
 
 //*****************************************************************************
@@ -204,26 +254,52 @@ int main(void)
 
 	/**                                              Creacion de tareas 												**/
 
-	// Crea la tarea que gestiona los comandos UART (definida en el fichero commands.c)
-	//
-	if((xTaskCreate(vUARTTask, (portCHAR *)"Uart", 512,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE))
-	{
-		while(1);
-	}
 
-	UsbSerialInit(32,32);	//Inicializo el  sistema USB
-	RemoteInit(); //Inicializo la aplicacion de comunicacion con el PC (Remote)
+    //
+    // Crea la tarea que parpadea el LED ROJO.
+    //
 
+    if ((xTaskCreate(LEDTask2, (signed portCHAR *)"Led2",LED2TASKSTACKSIZE,NULL,tskIDLE_PRIORITY + 1,NULL)!= pdTRUE))
+        {
+            while(1)
+            {
+            }
+        }
+    //
+    // Crea la tarea que parpadea el LED ROJO.
+    //
 
-	//
-	// Arranca el  scheduler.  Pasamos a ejecutar las tareas que se hayan activado.
-	//
-	vTaskStartScheduler();	//el RTOS habilita las interrupciones al entrar aqui, asi que no hace falta habilitarlas
+    if((xTaskCreate(LEDTask, (signed portCHAR *)"Led1", LED1TASKSTACKSIZE,NULL,tskIDLE_PRIORITY + 1, &handle) != pdTRUE))
+        {
+            while(1)
+            {
+            }
+        }
 
-	//De la funcion vTaskStartScheduler no se sale nunca... a partir de aqui pasan a ejecutarse las tareas.
-	while(1)
-	{
-		//Si llego aqui es que algo raro ha pasado
-	}
+    //
+    // Create la tarea que gestiona los comandos (definida en el fichero commands.c)
+    //
+    if((xTaskCreate(vUARTTask, (signed portCHAR *)"Uart", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE))
+        {
+            while(1)
+            {
+            }
+        }
+
+    uint32_t auxiliar[2];
+    QUEUE_GPIO = xQueueCreate(10,sizeof(auxiliar));
+     if (NULL == QUEUE_GPIO)
+        while(1);   // Si la cola no es creada, se queda "pillado" en este bucle.
+
+    //
+    // Arranca el  scheduler.  Pasamos a ejecutar las tareas que se hayan activado.
+    //
+    vTaskStartScheduler();  //el RTOS habilita las interrupciones al entrar aqui, asi que no hace falta habilitarlas
+
+    //De la funcion vTaskStartScheduler no se sale nunca... a partir de aqui pasan a ejecutarse las tareas.
+    while(1)
+    {
+        //Si llego aqui es que algo raro ha pasado
+    }
 }
 
