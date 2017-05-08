@@ -24,6 +24,13 @@ Desde el PC se debe poder activar o desactivar este comportamiento, que consiste
 3. Visualizar el uso de CPU [Implementado en el ejemplo]
 4. Visualizar las estadísticas de las tareas [Implementado en el ejemplo]
 
+### Especificaciones funcionales básicas P2
+#### Sistema de monitorización de entradas analógicas y digitales
+Cuando  la  funcionalidad  esté  activada,  el  firmware  de  la  TIVA  realizará  una  monitorización  de  los  pines GPIO del puerto B (“entradas digitales”) y de los pines analógicos AIN0, AIN1, AIN2 y AIN3 (multiplexados con los pines del puerto PE).
+
+#### Adquisición de datos analógicos (con DMA) y representación en tiempo real (“Tarjeta	de	adquisición	de	datos”)
+El  PC  debe  poder  configurar  el  muestreo  y  conversión  A/D  de  señales  analógicas  con  una  frecuencia  de muestreo programable. Los datos de ésta operación se deberán transmitir en tiempo real al PC, que en tal caso  los  mostrará  en  una  gráfica.  También  debe  ser  posible  detener  la  adquisición  de  datos.  Se  muestrearán los canales AIN0, AIN1, AIN2 y AIN3, multiplexados con los pines del puerto PE.
+
 ### Protocolo de comunicación
 Para las comunicaciones entre la aplicación del PC y la del microcontrolador se utilizará el perfil CDC (Communication Device Class) del interfaz USB, que emula un puerto serie.
 <p align="center">
@@ -45,3 +52,6 @@ El microcontrolador puede también enviar mensajes de respuesta hacia el PC.
 <p align="center">
     <img src="https://i.gyazo.com/d7611bdf3e145ec295af5c7d53cf25d8.png" width="640">
 </p>
+
+#### Lista de comandos AVANZADOS
+ToDo!!
