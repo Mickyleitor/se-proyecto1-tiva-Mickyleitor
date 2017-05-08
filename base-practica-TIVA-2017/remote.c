@@ -29,6 +29,9 @@
 static uint8_t frame[MAX_FRAME_SIZE];	//Usar una global permite ahorrar pila en la tarea, pero hay que tener cuidado!!!!
 static uint32_t gRemoteProtocolErrors=0;
 
+// Manejador para tarea del puerto
+extern TaskHandle_t handle;
+
 //Defino a un tipo que es un puntero a funcion con el prototipo que tienen que tener las funciones que definamos
 typedef int32_t (*remote_fun)(uint32_t param_size, void *param);
 
@@ -67,9 +70,9 @@ int32_t ComandoLedsFun(uint32_t param_size, void *param)
 	if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
 	{
 		//Ahora mismo se hace usando el PWM --> TODO: Cambiar a GPIO para cumplir las especificaciones
-		ulColors[0]= parametro.leds.red ? 0x8000 : 0x0000;
-		ulColors[1]=parametro.leds.green ? 0x8000 : 0x0000;
-		ulColors[2]= parametro.leds.blue ? 0x8000 : 0x0000;
+		ulColors[0]= parametro.leds.fRed ? 0x8000 : 0x0000;
+		ulColors[1]=parametro.leds.fGreen ? 0x8000 : 0x0000;
+		ulColors[2]= parametro.leds.fBlue ? 0x8000 : 0x0000;
 
 		RGBColorSet(ulColors);
 
@@ -87,24 +90,99 @@ int32_t ComandoNoImplementadoFun(uint32_t param_size, void *param)
 	return PROT_ERROR_UNIMPLEMENTED_COMMAND; /* Devuelve un error para que lo procese la tarea que recibe los comandos */
 }
 
-//Funcion que se ejecuta cuando llega el comando que configura el BRILLO
+//Funcion que se ejecuta cuando llega el comando que configura los LEDS
 int32_t ComandoBrilloLedsFun(uint32_t param_size, void *param)
 {
-	PARAM_COMANDO_BRILLO parametro;
+    PARAM_COMANDO_BRILLO parametro;
 
 
-	if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
-	{
+    if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
+    {
 
 
-		RGBIntensitySet(parametro.rIntensity);
+        RGBIntensitySet(parametro.rIntensity);
 
-		return 0;	//Devuelve Ok (valor mayor no negativo)
-	}
-	else
-	{
-		return PROT_ERROR_INCORRECT_PARAM_SIZE; //Devuelve un error
-	}
+        return 0;   //Devuelve Ok (valor mayor no negativo)
+    }
+    else
+    {
+        return PROT_ERROR_INCORRECT_PARAM_SIZE; //Devuelve un error
+    }
+}
+
+int32_t ComandoColorFun(uint32_t param_size,void *param)
+{
+    PARAM_COMANDO_COLOR parametro;
+    uint32_t array[3]={0x0000, 0x0000, 0x0000};
+    if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
+    {
+
+        array[0]=parametro.r <<8;
+        array[1]=parametro.g <<8;
+        array[2]=parametro.b <<8;
+        RGBColorSet(array);
+        return 0;
+    }
+    else
+    {
+        return PROT_ERROR_INCORRECT_PARAM_SIZE; //Devuelve un error
+    }
+
+}
+
+int32_t ComandoModeFun(uint32_t param_size,void *param){
+    // Funcion auxiliar para debug para habilitar (1) o deshabilitar (0) interrupciones.
+    PARAM_COMANDO_MODO parametro;
+    if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
+    {
+        if (parametro.x == 0){
+            RGBDisable();
+            ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
+        }else if (parametro.x == 1){
+            RGBEnable();
+        }
+        return 0;
+    }
+    else
+    {
+        return PROT_ERROR_INCORRECT_PARAM_SIZE;
+    }
+}
+
+int32_t ComandoRequestFun(uint32_t param_size,void *param){
+    int32_t numdatos;
+    PARAM_COMANDO_REQUEST parametro;
+    parametro.sw1 = GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_4);
+    parametro.sw2 = GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0);
+
+    numdatos=create_frame(frame,COMANDO_REQUEST,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
+
+    if (numdatos>=0)
+    {
+        send_frame(frame,numdatos);
+    }
+
+    return numdatos;
+}
+
+int32_t ComandoInterruptFun(uint32_t param_size,void *param){
+    PARAM_COMANDO_INTERRUPTS parametro;
+    if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
+    {
+        if (parametro.x == 0){ //Si es 0 desactivamos las interrupciones
+             vTaskSuspend(handle);
+             IntDisable(INT_GPIOF);
+
+        }else if (parametro.x == 1){ //Si es 1 activamos las interrupciones
+            vTaskResume(handle);
+            IntEnable(INT_GPIOF);
+        }
+        return 0;
+    }
+    else
+    {
+        return PROT_ERROR_INCORRECT_PARAM_SIZE;
+    }
 }
 
 
@@ -114,13 +192,17 @@ static const remote_fun remote_fun_array[]={
 		ComandoPingFun, /* Responde al comando ping */
 		ComandoLedsFun, /* Responde al comando LEDS */
 		ComandoBrilloLedsFun, /* Responde al comando Brillo */
+		ComandoModeFun, /* Responde al comando Modo GPIO / PWM */
+		ComandoRequestFun, /* Responde al comando para preguntar estado (pull) de sw1,sw2 */
+		ComandoColorFun, /* Responde al comando de la rueda de color */
+		ComandoInterruptFun, /* Responde al comando de habilitacion o deshabilitacion de interrupciones */
 		ComandoNoImplementadoFun
 };
 
 // Codigo para procesar los comandos recibidos a traves del canal USB del micro ("conector lateral")
 
-//Esta tarea decodifica los comandos y ejecuta la función que corresponda a cada uno de ellos (por posicion)
-//También gestiona posibles errores en la comunicacion
+//Esta tarea decodifica los comandos y ejecuta la funciï¿½n que corresponda a cada uno de ellos (por posicion)
+//Tambiï¿½n gestiona posibles errores en la comunicacion
 static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 
 	//Frame es global en este fichero, se reutiliza en las funciones que envian respuestas ---> CUIDADO!!!
@@ -154,8 +236,8 @@ static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 				{
 					switch(remote_fun_array[command](numdatos,ptrtoparam))
 					{
-						//La funcion puede devolver códigos de error.
-					    //Se procesarían a continuación
+						//La funcion puede devolver cï¿½digos de error.
+					    //Se procesarï¿½an a continuaciï¿½n
 						case PROT_ERROR_NOMEM:
 						{
 							// Procesamiento del error NO MEMORY (TODO, por hacer)
@@ -189,7 +271,7 @@ static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 							}
 						}
 						break;
-						//AÑadir casos de error aqui...
+						//Aï¿½adir casos de error aqui...
 						default:
 							/* No hacer nada */
 							break;

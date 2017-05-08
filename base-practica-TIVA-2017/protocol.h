@@ -52,11 +52,16 @@
 //Codigos de los comandos. EL estudiante deberá definir los códigos para los comandos que vaya
 // a crear y usar. Estos deberan ser compatibles con los usados en la parte Qt
 typedef enum {
-	COMANDO_RECHAZADO,
-	COMANDO_PING,
-	COMANDO_LEDS,
-	COMANDO_BRILLO,
-	//etc, etc...
+    COMANDO_RECHAZADO,
+    COMANDO_PING,
+    COMANDO_LEDS,
+    COMANDO_BRILLO,
+    COMANDO_MODO,
+    COMANDO_REQUEST,
+    COMANDO_COLOR,
+    COMANDO_INTERRUPT,
+
+
 } commandTypes;
 
 //Estructuras relacionadas con los parametros de los comandos. El estuadiante debera crear las
@@ -69,19 +74,38 @@ typedef struct {
 } PACKED PARAM_COMANDO_RECHAZADO;
 
 typedef union{
-	struct {
-		 uint8_t red:1;
-		 uint8_t green:1;
-		 uint8_t blue:1;
-	} PACKED leds;
-    uint8_t valor;
+    struct {
+                uint8_t fRed:1;
+                uint8_t fGreen:1;
+                uint8_t fBlue:1;
+    } PACKED leds;
+    uint8_t ui8Valor;
 } PACKED PARAM_COMANDO_LEDS;
 
 typedef struct {
     float rIntensity;
 } PACKED PARAM_COMANDO_BRILLO;
 
-//Aqui puedo a�adir comandos....
+typedef struct {
+    uint8_t x;
+} PACKED PARAM_COMANDO_MODO;
+
+typedef struct {
+    uint8_t sw1;
+    uint8_t sw2;
+} PACKED PARAM_COMANDO_REQUEST;
+
+typedef struct {
+    int r;
+    int g;
+    int b;
+} PACKED PARAM_COMANDO_COLOR;
+
+typedef struct {
+    uint8_t x;
+} PACKED PARAM_COMANDO_INTERRUPTS;
+
+//Aqui puedo a�adir comandos....
 
 //#pragma pack()	//...Pero solo para los comandos que voy a intercambiar, no para el resto.
 
