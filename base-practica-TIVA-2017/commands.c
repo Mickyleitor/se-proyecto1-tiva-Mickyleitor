@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -36,14 +37,13 @@
 #include "utils/cpu_usage.h"
 #include "utils/cmdline.h"
 #include "utils/uartstdio.h"
-
+#include "protocol.h"
 #include "drivers/rgb.h"
 
 // ==============================================================================
 // The CPU usage in percent, in 16.16 fixed point format.
 // ==============================================================================
 extern uint32_t g_ui32CPUUsage;
-
 // ==============================================================================
 // Implementa el comando cpu que muestra el uso de CPU
 // ==============================================================================
@@ -96,7 +96,7 @@ int Cmd_tasks(int argc, char *argv[])
 	pi8Stack = (uint8_t *) &__stack;
 	while (*pi8Stack++ == 0xA5)
 	{
-		x++;	//Esto sólo funciona si hemos rellenado la pila del sistema con 0xA5 en el arranque
+		x++;	//Esto sï¿½lo funciona si hemos rellenado la pila del sistema con 0xA5 en el arranque
 	}
 	sprintf((char *) pcBuffer, "%%%us", configMAX_TASK_NAME_LEN);
 	sprintf((char *) &pcBuffer[10], (const char *) pcBuffer, "kernel");
@@ -308,60 +308,60 @@ void vUARTTask( void *pvParameters )
 {
     char    pcCmdBuf[64];
     int32_t i32Status;
-	
+
     //
     // Mensaje de bienvenida inicial.
     //
     UARTprintf("\n\nWelcome to the TIVA FreeRTOS Demo!\n");
-	UARTprintf("\n\n FreeRTOS %s \n",
-		tskKERNEL_VERSION_NUMBER);
-	UARTprintf("\n Teclee ? para ver la ayuda \n");
-	UARTprintf("> ");    
+    UARTprintf("\n\n FreeRTOS %s \n",
+        tskKERNEL_VERSION_NUMBER);
+    UARTprintf("\n Teclee ? para ver la ayuda \n");
+    UARTprintf("> ");
 
-	/* Loop forever */
-	while (1)
-	{
+    /* Loop forever */
+    while (1)
+    {
 
-		/* Read data from the UART and process the command line */
-		UARTgets(pcCmdBuf, sizeof(pcCmdBuf));
-		if (strlen(pcCmdBuf) == 0)
-		{
-			UARTprintf("> ");
-			continue;
-		}
+        /* Read data from the UART and process the command line */
+        UARTgets(pcCmdBuf, sizeof(pcCmdBuf));
+        if (strlen(pcCmdBuf) == 0)
+        {
+            UARTprintf("> ");
+            continue;
+        }
 
-		//
-		// Pass the line from the user to the command processor.  It will be
-		// parsed and valid commands executed.
-		//
-		i32Status = CmdLineProcess(pcCmdBuf);
+        //
+        // Pass the line from the user to the command processor.  It will be
+        // parsed and valid commands executed.
+        //
+        i32Status = CmdLineProcess(pcCmdBuf);
 
-		//
-		// Handle the case of bad command.
-		//
-		if(i32Status == CMDLINE_BAD_CMD)
-		{
-			UARTprintf("Comando erroneo!\n");	//No pongo acentos adrede
-		}
+        //
+        // Handle the case of bad command.
+        //
+        if(i32Status == CMDLINE_BAD_CMD)
+        {
+            UARTprintf("Comando erroneo!\n");   //No pongo acentos adrede
+        }
 
-		//
-		// Handle the case of too many arguments.
-		//
-		else if(i32Status == CMDLINE_TOO_MANY_ARGS)
-		{
-			UARTprintf("El interprete de comandos no admite tantos parametros\n");	//El maximo, CMDLINE_MAX_ARGS, esta definido en cmdline.c
-		}
+        //
+        // Handle the case of too many arguments.
+        //
+        else if(i32Status == CMDLINE_TOO_MANY_ARGS)
+        {
+            UARTprintf("El interprete de comandos no admite tantos parametros\n");  //El maximo, CMDLINE_MAX_ARGS, esta definido en cmdline.c
+        }
 
-		//
-		// Otherwise the command was executed.  Print the error code if one was
-		// returned.
-		//
-		else if(i32Status != 0)
-		{
-			UARTprintf("El comando devolvio el error %d\n",i32Status);
-		}
+        //
+        // Otherwise the command was executed.  Print the error code if one was
+        // returned.
+        //
+        else if(i32Status != 0)
+        {
+            UARTprintf("El comando devolvio el error %d\n",i32Status);
+        }
 
-		UARTprintf("> ");
+        UARTprintf("> ");
 
-	}
+    }
 }

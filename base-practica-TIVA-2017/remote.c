@@ -26,8 +26,13 @@
 #include "queue.h"
 #include "semphr.h"
 
+#include "configADC.h"
+
 static uint8_t frame[MAX_FRAME_SIZE];	//Usar una global permite ahorrar pila en la tarea, pero hay que tener cuidado!!!!
 static uint32_t gRemoteProtocolErrors=0;
+
+// MUTEX declarado en el main
+// extern xSemaphoreHandle UART_SEMAFORO;
 
 // Manejador para tarea del puerto
 extern TaskHandle_t handle;
@@ -51,11 +56,15 @@ int32_t ComandoPingFun(uint32_t param_size, void *param)
 {
 	int32_t numdatos;
 
+	// Protegemos com MUTEX la creación de la trama por esta tarea
+	// xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
 	numdatos=create_frame(frame,COMANDO_PING,0,0,MAX_FRAME_SIZE);
 	if (numdatos>=0)
 	{
 		send_frame(frame,numdatos);
 	}
+	// Soltamos MUTEX!!
+	// xSemaphoreGive(UART_SEMAFORO);
 
 	return numdatos;
 }
@@ -155,12 +164,16 @@ int32_t ComandoRequestFun(uint32_t param_size,void *param){
     parametro.sw1 = GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_4);
     parametro.sw2 = GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0);
 
+    // Protegemos com MUTEX la creación de la trama por esta tarea
+    // xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
     numdatos=create_frame(frame,COMANDO_REQUEST,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 
     if (numdatos>=0)
     {
         send_frame(frame,numdatos);
     }
+    // Soltamos MUTEX!!
+    // xSemaphoreGive(UART_SEMAFORO);
 
     return numdatos;
 }
@@ -185,6 +198,16 @@ int32_t ComandoInterruptFun(uint32_t param_size,void *param){
     }
 }
 
+//SEMANA2: Funcion que procesa el comando ADC
+int32_t ComandoADCFun(uint32_t param_size, void *param)
+{
+    if (param_size!=0) return PROT_ERROR_INCORRECT_PARAM_SIZE; //Devuelve un error si viene con datos (no los esperamos)
+
+    configADC_DisparaADC(); //Dispara la conversion (por software)
+
+    return 0;
+}
+
 
 /* Array que contiene las funciones que se van a ejecutar en respuesta a cada comando */
 static const remote_fun remote_fun_array[]={
@@ -196,6 +219,7 @@ static const remote_fun remote_fun_array[]={
 		ComandoRequestFun, /* Responde al comando para preguntar estado (pull) de sw1,sw2 */
 		ComandoColorFun, /* Responde al comando de la rueda de color */
 		ComandoInterruptFun, /* Responde al comando de habilitacion o deshabilitacion de interrupciones */
+		ComandoADCFun,
 		ComandoNoImplementadoFun
 };
 
@@ -264,11 +288,16 @@ static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 
 							parametro.command=command;
 							//El comando esta bien pero no esta implementado
+
+						    // Protegemos com MUTEX la creación de la trama por esta tarea
+						    // xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
 							numdatos=create_frame(frame,COMANDO_RECHAZADO,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 							if (numdatos>=0)
 							{
 									send_frame(frame,numdatos);
 							}
+						    // Soltamos MUTEX!!
+						    // xSemaphoreGive(UART_SEMAFORO);
 						}
 						break;
 						//A�adir casos de error aqui...
@@ -294,6 +323,26 @@ static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 	}
 }
 
+//SEMANA2: a�adida para facilitar el envio de datos a diversas tareas. IMPORTANTE!!! Leer los comentarios que hay abajo
+//Ojo!! Frame es global (para ahorrar memoria de pila en las tareas) --> Se deben tomar precauciones al usar esta funci�n en varias tareas
+//IDEM en lo que respecta al envio por el puerto serie desde varias tareas....
+//Estas precauciones no se han tomado en este codigo de partida, pero al realizar la practica se deberian tener en cuenta....
+int32_t RemoteSendCommand(uint8_t comando,void *parameter,int32_t paramsize)
+{
+    int32_t numdatos;
+
+    // Protegemos com MUTEX la creación de la trama por esta tarea
+    // xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
+    numdatos=create_frame(frame,comando,parameter,paramsize,MAX_FRAME_SIZE);
+    if (numdatos>=0)
+    {
+        send_frame(frame,numdatos);
+    }
+    // Soltamos MUTEX!!
+    // xSemaphoreGive(UART_SEMAFORO);
+
+    return numdatos;
+}
 
 //Inicializa la tarea que recibe comandos (se debe llamar desde main())
 void RemoteInit(void)

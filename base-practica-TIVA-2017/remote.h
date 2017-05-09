@@ -21,5 +21,6 @@
 #define REMOTE_TASK_PRIORITY (tskIDLE_PRIORITY+2)
 
 void RemoteInit(void);
+int32_t RemoteSendCommand(uint8_t comando,void *parameter,int32_t paramsize);
 
 #endif /* REMOTE_H_ */

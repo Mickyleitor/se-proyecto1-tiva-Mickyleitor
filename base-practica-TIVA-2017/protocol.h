@@ -16,6 +16,7 @@
 #include<stdlib.h>
 #include<string.h>
 #include<FreeRTOS.h>
+#include<configADC.h>
 
 //Caracteres especiales
 #define START_FRAME_CHAR 0xFC
@@ -60,8 +61,7 @@ typedef enum {
     COMANDO_REQUEST,
     COMANDO_COLOR,
     COMANDO_INTERRUPT,
-
-
+    COMANDO_ADC
 } commandTypes;
 
 //Estructuras relacionadas con los parametros de los comandos. El estuadiante debera crear las
@@ -104,6 +104,12 @@ typedef struct {
 typedef struct {
     uint8_t x;
 } PACKED PARAM_COMANDO_INTERRUPTS;
+
+typedef struct
+{
+    MuestrasADC channels[8];
+
+} PACKED PARAM_COMANDO_ADC;
 
 //Aqui puedo a�adir comandos....
 
