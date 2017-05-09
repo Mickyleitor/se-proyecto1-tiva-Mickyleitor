@@ -51,8 +51,7 @@ void configADC_IniciaADC(void)
 				//CONFIGURAR SECUENCIADOR 1
 				ADCSequenceDisable(ADC0_BASE,1);
 
-				//Configuramos la velocidad de conversion al maximo (1MS/s)
-				//1 muestra por segundo y podemos dividir la velocidad en el �ltimo par�metro
+				// ADC configurado a maxima velocidad
 				ADCClockConfigSet(ADC0_BASE, ADC_CLOCK_RATE_FULL, 1);
 
 				//Configuraci�n de secuencia

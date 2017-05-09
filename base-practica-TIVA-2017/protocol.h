@@ -61,7 +61,9 @@ typedef enum {
     COMANDO_REQUEST,
     COMANDO_COLOR,
     COMANDO_INTERRUPT,
-    COMANDO_ADC
+    COMANDO_TIMER,
+    COMANDO_ADC,
+    COMANDO_FREQ
 } commandTypes;
 
 //Estructuras relacionadas con los parametros de los comandos. El estuadiante debera crear las
@@ -107,9 +109,20 @@ typedef struct {
 
 typedef struct
 {
-    MuestrasADC channels[8];
+    MuestrasADC channels[10];
 
-} PACKED PARAM_COMANDO_ADC;
+} PACKED PARAM_COMANDO_ADC; /* SEMANA2 */
+
+
+typedef struct
+{
+    double frequency;
+} PACKED PARAM_COMANDO_FREQ;
+
+typedef struct
+{
+    bool Timer_On;
+} PACKED PARAM_COMANDO_TIMER;
 
 //Aqui puedo a�adir comandos....
 

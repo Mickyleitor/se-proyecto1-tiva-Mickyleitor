@@ -38,7 +38,7 @@
 #define LED1TASKSTACKSIZE 128
 #define TAREA1TASKPRIO 1
 #define TAREA1STACKSIZE 128
-#define ADC_COUNTER 8
+#define ADC_COUNTER 10
 
 //Globales
 
@@ -180,7 +180,7 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
 
         configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
         array[contador]=muestras;
-        if(contador==(ADC_COUNTER-1)){ // Si hemos tomado todas las muestras las enviamos.
+        if(contador==(ADC_COUNTER-1)){
             RemoteSendCommand(COMANDO_ADC,(void *)array,sizeof(array));
             contador=0;
         }else contador++;
@@ -254,6 +254,7 @@ int main(void)
     // Configura el Timer2 para cuenta periodica de 32 bits (no lo separa en TIMER2A y TIMER2B)
     TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
     // Carga timer (0.1 segundos)
+    // Esto, en tiempo de ejecucion se cambia si desde el pc se cambia la tasa de refresco
     TimerLoadSet(TIMER2_BASE, TIMER_A, (SysCtlClockGet()/10));
 
     configADC_IniciaADC();  //SEMANA 2: Inicia el ADC
