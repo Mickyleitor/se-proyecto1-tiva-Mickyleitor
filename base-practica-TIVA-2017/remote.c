@@ -32,7 +32,7 @@ static uint8_t frame[MAX_FRAME_SIZE];	//Usar una global permite ahorrar pila en 
 static uint32_t gRemoteProtocolErrors=0;
 
 // MUTEX declarado en el main
-// extern xSemaphoreHandle UART_SEMAFORO;
+extern xSemaphoreHandle UART_SEMAFORO;
 
 // Manejador para tarea del puerto
 extern TaskHandle_t handle;
@@ -57,14 +57,14 @@ int32_t ComandoPingFun(uint32_t param_size, void *param)
 	int32_t numdatos;
 
 	// Protegemos com MUTEX la creación de la trama por esta tarea
-	// xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
+	xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
 	numdatos=create_frame(frame,COMANDO_PING,0,0,MAX_FRAME_SIZE);
 	if (numdatos>=0)
 	{
 		send_frame(frame,numdatos);
 	}
 	// Soltamos MUTEX!!
-	// xSemaphoreGive(UART_SEMAFORO);
+	xSemaphoreGive(UART_SEMAFORO);
 
 	return numdatos;
 }
@@ -165,7 +165,7 @@ int32_t ComandoRequestFun(uint32_t param_size,void *param){
     parametro.sw2 = GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0);
 
     // Protegemos com MUTEX la creación de la trama por esta tarea
-    // xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
+    xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
     numdatos=create_frame(frame,COMANDO_REQUEST,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 
     if (numdatos>=0)
@@ -173,7 +173,7 @@ int32_t ComandoRequestFun(uint32_t param_size,void *param){
         send_frame(frame,numdatos);
     }
     // Soltamos MUTEX!!
-    // xSemaphoreGive(UART_SEMAFORO);
+    xSemaphoreGive(UART_SEMAFORO);
 
     return numdatos;
 }
@@ -328,14 +328,14 @@ static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 							//El comando esta bien pero no esta implementado
 
 						    // Protegemos com MUTEX la creación de la trama por esta tarea
-						    // xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
+						    xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
 							numdatos=create_frame(frame,COMANDO_RECHAZADO,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 							if (numdatos>=0)
 							{
 									send_frame(frame,numdatos);
 							}
 						    // Soltamos MUTEX!!
-						    // xSemaphoreGive(UART_SEMAFORO);
+						    xSemaphoreGive(UART_SEMAFORO);
 						}
 						break;
 						//A�adir casos de error aqui...
@@ -370,14 +370,14 @@ int32_t RemoteSendCommand(uint8_t comando,void *parameter,int32_t paramsize)
     int32_t numdatos;
 
     // Protegemos com MUTEX la creación de la trama por esta tarea
-    // xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
+    xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
     numdatos=create_frame(frame,comando,parameter,paramsize,MAX_FRAME_SIZE);
     if (numdatos>=0)
     {
         send_frame(frame,numdatos);
     }
     // Soltamos MUTEX!!
-    // xSemaphoreGive(UART_SEMAFORO);
+    xSemaphoreGive(UART_SEMAFORO);
 
     return numdatos;
 }

@@ -44,6 +44,7 @@
 // The CPU usage in percent, in 16.16 fixed point format.
 // ==============================================================================
 extern uint32_t g_ui32CPUUsage;
+extern xSemaphoreHandle UART_SEMAFORO;
 // ==============================================================================
 // Implementa el comando cpu que muestra el uso de CPU
 // ==============================================================================
@@ -274,9 +275,6 @@ int Cmd_rgb(int argc, char *argv[])
     return 0;
 }
 
-
-
-
 // ==============================================================================
 // Tabla con los comandos y su descripcion. Si quiero anadir alguno, debo hacerlo aqui
 // ==============================================================================
@@ -301,7 +299,7 @@ tCmdLineEntry g_psCmdTable[] =
 // ==============================================================================
 // Tarea UARTTask.  Espera la llegada de comandos por el puerto serie y los ejecuta al recibirlos...
 // ==============================================================================
-//extern xSemaphoreHandle g_xRxLineSemaphore;
+
 void UARTStdioIntHandler(void);
 
 void vUARTTask( void *pvParameters )
@@ -314,14 +312,13 @@ void vUARTTask( void *pvParameters )
     //
     UARTprintf("\n\nWelcome to the TIVA FreeRTOS Demo!\n");
     UARTprintf("\n\n FreeRTOS %s \n",
-        tskKERNEL_VERSION_NUMBER);
+    tskKERNEL_VERSION_NUMBER);
     UARTprintf("\n Teclee ? para ver la ayuda \n");
     UARTprintf("> ");
 
     /* Loop forever */
     while (1)
     {
-
         /* Read data from the UART and process the command line */
         UARTgets(pcCmdBuf, sizeof(pcCmdBuf));
         if (strlen(pcCmdBuf) == 0)
@@ -362,6 +359,5 @@ void vUARTTask( void *pvParameters )
         }
 
         UARTprintf("> ");
-
     }
 }

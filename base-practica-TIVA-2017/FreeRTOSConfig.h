@@ -78,14 +78,14 @@
 #define configUSE_TRACE_FACILITY            1 // 1/0: Activación del modo traza
 #define configUSE_16_BIT_TICKS              0 // 1/0: Tamaño de la variable de cuenta de ticks (1:16bits, 0:32bits)
 #define configIDLE_SHOULD_YIELD             1 // 1/0: Si 1, la tarea IDLE SIEMPRE cede el control a otra tarea, aunque tenga tambien prioridad 0
-#define configUSE_MUTEXES                   0 // 1/0: Indica si se van a usar MUTEX en la aplicación
+#define configUSE_MUTEXES                   1 // 1/0: Indica si se van a usar MUTEX en la aplicación
 #define configUSE_RECURSIVE_MUTEXES         0 // 1/0: Indica si se van a usar MUTEX recursivos en la aplicación
 #define configUSE_COUNTING_SEMAPHORES       0 // 1/0: Indica si se van a usar semaforos contadores en la aplicación
-#define configUSE_MALLOC_FAILED_HOOK	1 // 1/0: Indica si se ejecutará una función de usuario en caso de fallo de memoria dinámica
-#define configUSE_APPLICATION_TASK_TAG	0 // 1/0: Activa el modo TAG de las tareas (relacionado con la depuración)
-#define configGENERATE_RUN_TIME_STATS	1 // 1/0: Activa la recogida de estadísticas (relacionado con la depuración)
-#define configUSE_TICKLESS_IDLE		0  // 1/0: Desactiva la ejecución de la tarea IDLE si el sistema se suspende durante un tiempo
-									   // hasta que el sistema vuelva a reactivarse
+#define configUSE_MALLOC_FAILED_HOOK    1 // 1/0: Indica si se ejecutará una función de usuario en caso de fallo de memoria dinámica
+#define configUSE_APPLICATION_TASK_TAG  0 // 1/0: Activa el modo TAG de las tareas (relacionado con la depuración)
+#define configGENERATE_RUN_TIME_STATS   1 // 1/0: Activa la recogida de estadísticas (relacionado con la depuración)
+#define configUSE_TICKLESS_IDLE     0  // 1/0: Desactiva la ejecución de la tarea IDLE si el sistema se suspende durante un tiempo
+                                       // hasta que el sistema vuelva a reactivarse
 #define configCHECK_FOR_STACK_OVERFLOW      (2) // 0/1/2: Activa alguno de los mecanismos de chequeo de desbordamiento en pila de tareas
 
 #define configUSE_CO_ROUTINES               0 // 1/0: Activa el uso de mecanismos de corrutinas
@@ -93,10 +93,10 @@
 #define configQUEUE_REGISTRY_SIZE           10 // Define el máximo número de colas y semáforos que se pueden registrar en el sistema
 
 /* Software timer definitions. */
-#define configUSE_TIMERS				1 // 1/0: Activa el uso de timers SW (basados en ticks)
-#define configTIMER_TASK_PRIORITY		( 2 ) // Fija la prioridad de la tareas interna que actualiza los timer SW
-#define configTIMER_QUEUE_LENGTH		32 // Tamaño de la cola de comandos de control de Timers SW
-#define configTIMER_TASK_STACK_DEPTH	( configMINIMAL_STACK_SIZE * 2 ) // Tamaño de la pila de la tarea interna que gestiona los timer SW
+#define configUSE_TIMERS                1 // 1/0: Activa el uso de timers SW (basados en ticks)
+#define configTIMER_TASK_PRIORITY       ( 2 ) // Fija la prioridad de la tareas interna que actualiza los timer SW
+#define configTIMER_QUEUE_LENGTH        32 // Tamaño de la cola de comandos de control de Timers SW
+#define configTIMER_TASK_STACK_DEPTH    ( configMINIMAL_STACK_SIZE * 2 ) // Tamaño de la pila de la tarea interna que gestiona los timer SW
 
 
 #define configUSE_STATS_FORMATTING_FUNCTIONS 1 // 1/0: Formateo de parámetros estadísticos recogidos en depuración
@@ -106,7 +106,7 @@
 #ifndef __ASM_HEADER__ /* elimina un monton de warnings */
 #include"utils/RunTimeStatsConfig.h"
 #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()            vConfigureTimerForRunTimeStats()
-#define portGET_RUN_TIME_COUNTER_VALUE()	GetOverflowCounts()
+#define portGET_RUN_TIME_COUNTER_VALUE()    GetOverflowCounts()
 #endif
 #endif
 

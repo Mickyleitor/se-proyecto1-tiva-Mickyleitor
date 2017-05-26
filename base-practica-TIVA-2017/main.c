@@ -53,7 +53,7 @@ xQueueHandle QUEUE_GPIO;
 
 // En esta version no he podido, me da error de linkado.
 // TODO en el futuro!!!!!!!
-// xSemaphoreHandle UART_SEMAFORO;
+xSemaphoreHandle UART_SEMAFORO;
 
 extern void vUARTTask( void *pvParameters );
 static uint8_t frame[MAX_FRAME_SIZE];
@@ -259,11 +259,11 @@ int main(void)
 
     configADC_IniciaADC();  //SEMANA 2: Inicia el ADC
 
-    /*
+
     // Creación semoforo MUTEX
     UART_SEMAFORO=xSemaphoreCreateMutex();
     if(UART_SEMAFORO == NULL) while(1);
-    */
+
 
 	//
 	// Mensaje de bienvenida inicial.
