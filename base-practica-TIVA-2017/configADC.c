@@ -20,7 +20,7 @@
 
  //SEMANA2: Este fichero implementa la configuracion del ADC y la ISR asociada. Las tareas pueden llamar a la funcion configADC_LeeADC (bloqueante) para leer datos del ADC
 //La funcion configADC_DisparaADC(...) (no bloqueante) realiza el disparo software del ADC
-//La funcion configADC_IniciaADC realiza la configuración del ADC: Los Pines E0 a E3 se ponen como entradas analógicas (AIN3 a AIN0 respectivamente). Ademas crea la cola de mensajes necesaria para que la funcion configADC_LeeADC sea bloqueante
+//La funcion configADC_IniciaADC realiza la configuraciï¿½n del ADC: Los Pines E0 a E3 se ponen como entradas analï¿½gicas (AIN3 a AIN0 respectivamente). Ademas crea la cola de mensajes necesaria para que la funcion configADC_LeeADC sea bloqueante
 
 
 static QueueHandle_t cola_adc;
@@ -49,10 +49,16 @@ void configADC_IniciaADC(void)
 				//CONFIGURAR SECUENCIADOR 1
 				ADCSequenceDisable(ADC0_BASE,1);
 
-				//Configuramos la velocidad de conversion al maximo (1MS/s)
-				ADCClockConfigSet(ADC0_BASE, ADC_CLOCK_RATE_FULL, 1);
+                //Configuramos la velocidad de conversion al maximo (1MS/s)
+                //1 muestra por segundo y podemos dividir la velocidad en el ultimo parametro
+                ADCClockConfigSet(ADC0_BASE, ADC_CLOCK_RATE_FULL, 1);
 
-				ADCSequenceConfigure(ADC0_BASE,1,ADC_TRIGGER_PROCESSOR,0);	//Disparo software (processor trigger)
+                //Configuracion de secuencia
+                //TRIGGER PROCESSOR disparar por proceso y si ponemos TRIGGER Timer disparamos por timer (NOS HARA FALTA)
+                TimerControlTrigger(TIMER2_BASE,TIMER_A,true);
+
+                ADCSequenceConfigure(ADC0_BASE,1,ADC_TRIGGER_PROCESSOR,0); // En este momento disparo por software (en tiempo real se cambia esto para poder disparar por timer)
+
 				ADCSequenceStepConfigure(ADC0_BASE,1,0,ADC_CTL_CH0);
 				ADCSequenceStepConfigure(ADC0_BASE,1,1,ADC_CTL_CH1);
 				ADCSequenceStepConfigure(ADC0_BASE,1,2,ADC_CTL_CH2);
@@ -88,7 +94,7 @@ void configADC_ISR(void)
 	ADCIntClear(ADC0_BASE,1);//LIMPIAMOS EL FLAG DE INTERRUPCIONES
 	ADCSequenceDataGet(ADC0_BASE,1,(uint32_t *)&leidas);//COGEMOS LOS DATOS GUARDADOS
 
-	//Pasamos de 32 bits a 16 (el conversor es de 12 bits, así que sólo son significativos los bits del 0 al 11)
+	//Pasamos de 32 bits a 16 (el conversor es de 12 bits, asï¿½ que sï¿½lo son significativos los bits del 0 al 11)
 	finales.chan1=leidas.chan1;
 	finales.chan2=leidas.chan2;
 	finales.chan3=leidas.chan3;

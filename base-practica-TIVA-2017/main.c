@@ -185,8 +185,7 @@ int main(void)
 	//
 	// Set the clocking to run at 40 MHz from the PLL.
 	//
-	ROM_SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ |
-			SYSCTL_OSC_MAIN);	//Ponermos el reloj principal a 40 MHz (200 Mhz del Pll dividido por 5)
+	ROM_SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);	//Ponermos el reloj principal a 40 MHz (200 Mhz del Pll dividido por 5)
 
 
 	// Get the system clock speed.
@@ -217,6 +216,16 @@ int main(void)
 	ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART0);	//La UART tiene que seguir funcionando aunque el micro este dormido
 	ROM_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOA);	//La UART tiene que seguir funcionando aunque el micro este dormido
 
+
+    // Configuracion TIMER2
+
+    // Habilita periferico Timer2
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
+    // Configura el Timer0 para cuenta periodica de 32 bits (no lo separa en TIMER2A y TIMER2B)
+    TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
+    // Carga la cuenta en el Timer2A
+    TimerLoadSet(TIMER2_BASE, TIMER_A, (SysCtlClockGet()/10));
 
 	//Inicializa los LEDs usando libreria RGB --> usa Timers 0 y 1 (eliminar si no se usa finalmente)
 	RGBInit(1);

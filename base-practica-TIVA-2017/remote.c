@@ -197,6 +197,45 @@ int32_t ComandoADCFun(uint32_t param_size, void *param)
     return 0;
 }
 
+int32_t ComandoFreqFun(uint32_t param_size, void *param)
+{
+    PARAM_COMANDO_FREQ parametro;
+    uint32_t ui32Periodo=0;
+    double valor =0;
+    if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
+    {
+        //Cargamos nueva cuenta en el timer
+        valor = parametro.frequency;
+        valor=valor*1000;
+        ui32Periodo =((SysCtlClockGet()/valor));
+        TimerLoadSet(TIMER2_BASE, TIMER_A,ui32Periodo-1);
+        return 0;   //Devuelve Ok (valor mayor no negativo)
+    }
+    else
+    {
+        return PROT_ERROR_INCORRECT_PARAM_SIZE; //Devuelve un error
+    }
+}
+int32_t ComandoTimerFun(uint32_t param_size, void *param)
+{
+    PARAM_COMANDO_TIMER parametro;
+    if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
+    {
+        //Si el check box est� activo, activamos timer, sino lo desactivamos
+        if(parametro.Timer_On == true){
+            TimerEnable(TIMER2_BASE, TIMER_A);
+            ADCSequenceConfigure(ADC0_BASE,1,ADC_TRIGGER_TIMER,0);  //Disparo por el timer2
+        }else{
+            TimerDisable(TIMER2_BASE, TIMER_A);
+            ADCSequenceConfigure(ADC0_BASE,1,ADC_TRIGGER_PROCESSOR,0); // Disparo por software (sondeo)
+        }
+        return 0;   //Devuelve Ok (valor mayor no negativo)
+    }
+    else
+    {
+        return PROT_ERROR_INCORRECT_PARAM_SIZE; //Devuelve un error
+    }
+}
 
 /* Array que contiene las funciones que se van a ejecutar en respuesta a cada comando */
 static const remote_fun remote_fun_array[]={
@@ -209,6 +248,8 @@ static const remote_fun remote_fun_array[]={
 		ComandoColorFun, /* Responde al comando de la rueda de color */
 		ComandoInterruptFun, /* Responde al comando de habilitacion o deshabilitacion de interrupciones */
 		ComandoADCFun,
+		ComandoFreqFun,
+		ComandoTimerFun,
 		ComandoNoImplementadoFun
 };
 
