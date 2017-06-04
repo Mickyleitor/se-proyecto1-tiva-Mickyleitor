@@ -45,7 +45,7 @@ uint32_t g_ui32CPUUsage;
 uint32_t g_ulSystemClock;
 TaskHandle_t handle = NULL;
 xQueueHandle QUEUE_GPIO;
-
+xSemaphoreHandle UART_SEMAFORO;
 extern void vUARTTask( void *pvParameters );
 static uint8_t frame[MAX_FRAME_SIZE];
 
@@ -144,13 +144,14 @@ static portTASK_FUNCTION(ProcessTask,pvParameters)
                 parametro.sw2=0;
             }else parametro.sw2=1;
 
+            xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
             number_bytes=create_frame(frame,COMANDO_REQUEST,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 
             if (number_bytes>=0)
             {
                 send_frame(frame,number_bytes);
             }
-
+            xSemaphoreGive(UART_SEMAFORO);
         }
     }
 }
@@ -276,6 +277,9 @@ int main(void)
     uint8_t x=5; // Tamaño de cola
     QUEUE_GPIO = xQueueCreate(x,sizeof(x));
     if (NULL == QUEUE_GPIO) while(1);   //Si hay problemas al crear la cola, se queda aqui!!
+
+    UART_SEMAFORO=xSemaphoreCreateMutex();
+    if(UART_SEMAFORO == NULL) while(1);
 	//
 	// Arranca el  scheduler.  Pasamos a ejecutar las tareas que se hayan activado.
 	//

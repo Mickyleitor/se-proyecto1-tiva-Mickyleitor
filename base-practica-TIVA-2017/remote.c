@@ -33,6 +33,8 @@ static uint32_t gRemoteProtocolErrors=0;
 
 // Manejador para tarea del puerto
 extern TaskHandle_t handle;
+// Semaforo para el UART
+extern xSemaphoreHandle UART_SEMAFORO;
 
 //Defino a un tipo que es un puntero a funcion con el prototipo que tienen que tener las funciones que definamos
 typedef int32_t (*remote_fun)(uint32_t param_size, void *param);
@@ -53,11 +55,13 @@ int32_t ComandoPingFun(uint32_t param_size, void *param)
 {
 	int32_t numdatos;
 
+	xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
 	numdatos=create_frame(frame,COMANDO_PING,0,0,MAX_FRAME_SIZE);
 	if (numdatos>=0)
 	{
 		send_frame(frame,numdatos);
 	}
+	xSemaphoreGive(UART_SEMAFORO);
 
 	return numdatos;
 }
@@ -157,12 +161,14 @@ int32_t ComandoRequestFun(uint32_t param_size,void *param){
     parametro.sw1 = GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_4);
     parametro.sw2 = GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0);
 
+    xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
     numdatos=create_frame(frame,COMANDO_REQUEST,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 
     if (numdatos>=0)
     {
         send_frame(frame,numdatos);
     }
+    xSemaphoreGive(UART_SEMAFORO);
 
     return numdatos;
 }
@@ -318,11 +324,13 @@ static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 
 							parametro.command=command;
 							//El comando esta bien pero no esta implementado
+							xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
 							numdatos=create_frame(frame,COMANDO_RECHAZADO,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 							if (numdatos>=0)
 							{
 									send_frame(frame,numdatos);
 							}
+							xSemaphoreGive(UART_SEMAFORO);
 						}
 						break;
 						//A�adir casos de error aqui...
@@ -356,13 +364,13 @@ static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 int32_t RemoteSendCommand(uint8_t comando,void *parameter,int32_t paramsize)
 {
     int32_t numdatos;
-
+    xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
     numdatos=create_frame(frame,comando,parameter,paramsize,MAX_FRAME_SIZE);
     if (numdatos>=0)
     {
         send_frame(frame,numdatos);
     }
-
+    xSemaphoreGive(UART_SEMAFORO);
     return numdatos;
 }
 
