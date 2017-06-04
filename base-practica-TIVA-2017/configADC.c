@@ -1,6 +1,5 @@
 #include<stdint.h>
 #include<stdbool.h>
-#include"remote.h"
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
@@ -17,21 +16,20 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
-#include "semphr.h"
 
 
  //SEMANA2: Este fichero implementa la configuracion del ADC y la ISR asociada. Las tareas pueden llamar a la funcion configADC_LeeADC (bloqueante) para leer datos del ADC
 //La funcion configADC_DisparaADC(...) (no bloqueante) realiza el disparo software del ADC
-//La funcion configADC_IniciaADC realiza la configuraciï¿½n del ADC: Los Pines E0 a E3 se ponen como entradas analï¿½gicas (AIN3 a AIN0 respectivamente). Ademas crea la cola de mensajes necesaria para que la funcion configADC_LeeADC sea bloqueante
+//La funcion configADC_IniciaADC realiza la configuración del ADC: Los Pines E0 a E3 se ponen como entradas analógicas (AIN3 a AIN0 respectivamente). Ademas crea la cola de mensajes necesaria para que la funcion configADC_LeeADC sea bloqueante
 
 
 static QueueHandle_t cola_adc;
 
 
+
 //Provoca el disparo de una conversion (hemos configurado el ADC con "disparo software" (Processor trigger)
 void configADC_DisparaADC(void)
 {
-
 	ADCProcessorTrigger(ADC0_BASE,1);
 }
 
@@ -51,19 +49,13 @@ void configADC_IniciaADC(void)
 				//CONFIGURAR SECUENCIADOR 1
 				ADCSequenceDisable(ADC0_BASE,1);
 
-				// ADC configurado a maxima velocidad
+				//Configuramos la velocidad de conversion al maximo (1MS/s)
 				ADCClockConfigSet(ADC0_BASE, ADC_CLOCK_RATE_FULL, 1);
 
-				//Configuraciï¿½n de secuencia
-				TimerControlTrigger(TIMER2_BASE,TIMER_A,true);
-
-				ADCSequenceConfigure(ADC0_BASE,1,ADC_TRIGGER_TIMER,0);	//Disparo software (processor trigger)
-
-				//4 Configure porque es el secuenciador 1 y puede realizar 4 conversiones consecutivas
+				ADCSequenceConfigure(ADC0_BASE,1,ADC_TRIGGER_PROCESSOR,0);	//Disparo software (processor trigger)
 				ADCSequenceStepConfigure(ADC0_BASE,1,0,ADC_CTL_CH0);
 				ADCSequenceStepConfigure(ADC0_BASE,1,1,ADC_CTL_CH1);
 				ADCSequenceStepConfigure(ADC0_BASE,1,2,ADC_CTL_CH2);
-				//ADC_CTL_IE |ADC_CTL_END Cuando termina la conversiï¿½n
 				ADCSequenceStepConfigure(ADC0_BASE,1,3,ADC_CTL_CH3|ADC_CTL_IE |ADC_CTL_END );	//La ultima muestra provoca la interrupcion
 				ADCSequenceEnable(ADC0_BASE,1); //ACTIVO LA SECUENCIA
 
@@ -79,10 +71,9 @@ void configADC_IniciaADC(void)
 				{
 					while(1);
 				}
-
 }
 
-//Solo lo puedo llamar desde nivel de tarea para estar constantemente leyendo
+
 void configADC_LeeADC(MuestrasADC *datos)
 {
 	xQueueReceive(cola_adc,datos,portMAX_DELAY);
@@ -90,14 +81,14 @@ void configADC_LeeADC(MuestrasADC *datos)
 
 void configADC_ISR(void)
 {
-
 	portBASE_TYPE higherPriorityTaskWoken=pdFALSE;
+
 	MuestrasLeidasADC leidas;
 	MuestrasADC finales;
 	ADCIntClear(ADC0_BASE,1);//LIMPIAMOS EL FLAG DE INTERRUPCIONES
 	ADCSequenceDataGet(ADC0_BASE,1,(uint32_t *)&leidas);//COGEMOS LOS DATOS GUARDADOS
 
-	//Pasamos de 32 bits a 16 (el conversor es de 12 bits, asï¿½ que sï¿½lo son significativos los bits del 0 al 11)
+	//Pasamos de 32 bits a 16 (el conversor es de 12 bits, así que sólo son significativos los bits del 0 al 11)
 	finales.chan1=leidas.chan1;
 	finales.chan2=leidas.chan2;
 	finales.chan3=leidas.chan3;

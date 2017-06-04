@@ -32,13 +32,12 @@
 #include "protocol.h"
 #include "remote.h"
 
-#include"configADC.h"
+#include "configADC.h"
 
 #define LED1TASKPRIO 1
 #define LED1TASKSTACKSIZE 128
 #define TAREA1TASKPRIO 1
 #define TAREA1STACKSIZE 128
-#define ADC_COUNTER 10
 
 //Globales
 
@@ -46,14 +45,6 @@ uint32_t g_ui32CPUUsage;
 uint32_t g_ulSystemClock;
 TaskHandle_t handle = NULL;
 xQueueHandle QUEUE_GPIO;
-
-// Vamos a crear este semaforo para controlar y prevenir colisiones de envio de tramas
-// ¿Porque? Porque hay varias tareas que podrían enviar de forma simultánea
-// ciertos comandos y mientras se crea la trama a enviar, no se pueden interrumpir.
-
-// En esta version no he podido, me da error de linkado.
-// TODO en el futuro!!!!!!!
-xSemaphoreHandle UART_SEMAFORO;
 
 extern void vUARTTask( void *pvParameters );
 static uint8_t frame[MAX_FRAME_SIZE];
@@ -153,14 +144,13 @@ static portTASK_FUNCTION(ProcessTask,pvParameters)
                 parametro.sw2=0;
             }else parametro.sw2=1;
 
-            // xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
             number_bytes=create_frame(frame,COMANDO_REQUEST,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 
             if (number_bytes>=0)
             {
                 send_frame(frame,number_bytes);
             }
-            // xSemaphoreGive(UART_SEMAFORO);
+
         }
     }
 }
@@ -170,8 +160,6 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
 {
 
     MuestrasADC muestras;
-    int contador=0;
-    MuestrasADC array[ADC_COUNTER];
     //
     // Bucle infinito, las tareas en FreeRTOS no pueden "acabar", deben "matarse" con la funcion xTaskDelete().
     //
@@ -179,14 +167,12 @@ static portTASK_FUNCTION(ADCTask,pvParameters)
     {
 
         configADC_LeeADC(&muestras);    //Espera y lee muestras del ADC (BLOQUEANTE)
-        array[contador]=muestras;
-        if(contador==(ADC_COUNTER-1)){
-            RemoteSendCommand(COMANDO_ADC,(void *)array,sizeof(array));
-            contador=0;
-        }else contador++;
+
         //Aprovechamos que las estructuras MuestrasADC y PARAM_COMANDO_ADC son iguales para mandarlas directamente;
+        RemoteSendCommand(COMANDO_ADC,(void *)&muestras,sizeof(muestras));
     }
 }
+
 
 //*****************************************************************************
 //
@@ -248,22 +234,7 @@ int main(void)
     IntEnable(INT_GPIOF);
     GPIOIntTypeSet(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0,GPIO_BOTH_EDGES);
 
-    // Configuramos Timer2
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
-    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
-    // Configura el Timer2 para cuenta periodica de 32 bits (no lo separa en TIMER2A y TIMER2B)
-    TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
-    // Carga timer (0.1 segundos)
-    // Esto, en tiempo de ejecucion se cambia si desde el pc se cambia la tasa de refresco
-    TimerLoadSet(TIMER2_BASE, TIMER_A, (SysCtlClockGet()/10));
-
     configADC_IniciaADC();  //SEMANA 2: Inicia el ADC
-
-
-    // Creación semoforo MUTEX
-    UART_SEMAFORO=xSemaphoreCreateMutex();
-    if(UART_SEMAFORO == NULL) while(1);
-
 
 	//
 	// Mensaje de bienvenida inicial.
@@ -284,12 +255,11 @@ int main(void)
     {
         while(1);
     }
-    //Semana 2
+    //SEMANA 2: Lanza una tarea para leer y enviar los datos del ADC
     if((xTaskCreate(ADCTask, (portCHAR *)"ADC", 256,NULL,tskIDLE_PRIORITY + 1, NULL) != pdTRUE))
     {
-            while(1);
+        while(1);
     }
-
 
     UsbSerialInit(32,32);   //Inicializo el  sistema USB
     RemoteInit(); //Inicializo la aplicacion de comunicacion con el PC (Remote)

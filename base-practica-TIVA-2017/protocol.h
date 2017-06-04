@@ -16,7 +16,6 @@
 #include<stdlib.h>
 #include<string.h>
 #include<FreeRTOS.h>
-#include<configADC.h>
 
 //Caracteres especiales
 #define START_FRAME_CHAR 0xFC
@@ -61,11 +60,12 @@ typedef enum {
     COMANDO_REQUEST,
     COMANDO_COLOR,
     COMANDO_INTERRUPT,
-    COMANDO_TIMER,
-    COMANDO_ADC,
-    COMANDO_FREQ
-} commandTypes;
 
+    // Semana 2
+    COMANDO_ADC,
+    COMANDO_FREQ,
+    COMANDO_TIMER
+} commandTypes;
 //Estructuras relacionadas con los parametros de los comandos. El estuadiante debera crear las
 // estructuras adecuadas a los comandos usados, y asegurarse de su compatibilidad con el extremo Qt
 //#pragma pack(1)	//Con esto consigo que el alineamiento de las estructuras en memoria del PC (32 bits) no tenga relleno.
@@ -76,17 +76,18 @@ typedef struct {
 } PACKED PARAM_COMANDO_RECHAZADO;
 
 typedef union{
-    struct {
-                uint8_t fRed:1;
-                uint8_t fGreen:1;
-                uint8_t fBlue:1;
-    } PACKED leds;
-    uint8_t ui8Valor;
+	struct {
+		 uint8_t red:1;
+		 uint8_t green:1;
+		 uint8_t blue:1;
+	} PACKED leds;
+    uint8_t valor;
 } PACKED PARAM_COMANDO_LEDS;
 
 typedef struct {
     float rIntensity;
 } PACKED PARAM_COMANDO_BRILLO;
+
 
 typedef struct {
     uint8_t x;
@@ -109,10 +110,11 @@ typedef struct {
 
 typedef struct
 {
-    MuestrasADC channels[10];
-
+	uint16_t chan1;
+	uint16_t chan2;
+	uint16_t chan3;
+	uint16_t chan4;
 } PACKED PARAM_COMANDO_ADC; /* SEMANA2 */
-
 
 typedef struct
 {

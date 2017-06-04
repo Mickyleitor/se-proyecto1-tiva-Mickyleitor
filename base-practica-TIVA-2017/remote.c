@@ -31,9 +31,6 @@
 static uint8_t frame[MAX_FRAME_SIZE];	//Usar una global permite ahorrar pila en la tarea, pero hay que tener cuidado!!!!
 static uint32_t gRemoteProtocolErrors=0;
 
-// MUTEX declarado en el main
-extern xSemaphoreHandle UART_SEMAFORO;
-
 // Manejador para tarea del puerto
 extern TaskHandle_t handle;
 
@@ -56,15 +53,11 @@ int32_t ComandoPingFun(uint32_t param_size, void *param)
 {
 	int32_t numdatos;
 
-	// Protegemos com MUTEX la creación de la trama por esta tarea
-	xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
 	numdatos=create_frame(frame,COMANDO_PING,0,0,MAX_FRAME_SIZE);
 	if (numdatos>=0)
 	{
 		send_frame(frame,numdatos);
 	}
-	// Soltamos MUTEX!!
-	xSemaphoreGive(UART_SEMAFORO);
 
 	return numdatos;
 }
@@ -79,9 +72,9 @@ int32_t ComandoLedsFun(uint32_t param_size, void *param)
 	if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
 	{
 		//Ahora mismo se hace usando el PWM --> TODO: Cambiar a GPIO para cumplir las especificaciones
-		ulColors[0]= parametro.leds.fRed ? 0x8000 : 0x0000;
-		ulColors[1]=parametro.leds.fGreen ? 0x8000 : 0x0000;
-		ulColors[2]= parametro.leds.fBlue ? 0x8000 : 0x0000;
+		ulColors[0]= parametro.leds.red ? 0x8000 : 0x0000;
+		ulColors[1]=parametro.leds.green ? 0x8000 : 0x0000;
+		ulColors[2]= parametro.leds.blue ? 0x8000 : 0x0000;
 
 		RGBColorSet(ulColors);
 
@@ -164,16 +157,12 @@ int32_t ComandoRequestFun(uint32_t param_size,void *param){
     parametro.sw1 = GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_4);
     parametro.sw2 = GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_0);
 
-    // Protegemos com MUTEX la creación de la trama por esta tarea
-    xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
     numdatos=create_frame(frame,COMANDO_REQUEST,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 
     if (numdatos>=0)
     {
         send_frame(frame,numdatos);
     }
-    // Soltamos MUTEX!!
-    xSemaphoreGive(UART_SEMAFORO);
 
     return numdatos;
 }
@@ -207,43 +196,7 @@ int32_t ComandoADCFun(uint32_t param_size, void *param)
 
     return 0;
 }
-int32_t ComandoFreqFun(uint32_t param_size, void *param)
-{
-    PARAM_COMANDO_FREQ parametro;
-    uint32_t ui32Periodo=0;
-    double valor =0;
-    if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
-    {
-        //Cargamos nueva cuenta en el timer
-        valor = parametro.frequency;
-        valor=valor*1000;
-        ui32Periodo =((SysCtlClockGet()/valor));
-        TimerLoadSet(TIMER2_BASE, TIMER_A,ui32Periodo-1);
-        return 0;   //Devuelve Ok (valor mayor no negativo)
-    }
-    else
-    {
-        return PROT_ERROR_INCORRECT_PARAM_SIZE; //Devuelve un error
-    }
-}
-int32_t ComandoTimerFun(uint32_t param_size, void *param)
-{
-    PARAM_COMANDO_TIMER parametro;
-    if (check_and_extract_command_param(param, param_size, sizeof(parametro),&parametro)>0)
-    {
-        if(parametro.Timer_On == true){
-            TimerEnable(TIMER2_BASE, TIMER_A);
-        }else{
-            TimerDisable(TIMER2_BASE, TIMER_A);
 
-        }
-        return 0;   //Devuelve Ok (valor mayor no negativo)
-    }
-    else
-    {
-        return PROT_ERROR_INCORRECT_PARAM_SIZE; //Devuelve un error
-    }
-}
 
 /* Array que contiene las funciones que se van a ejecutar en respuesta a cada comando */
 static const remote_fun remote_fun_array[]={
@@ -255,9 +208,7 @@ static const remote_fun remote_fun_array[]={
 		ComandoRequestFun, /* Responde al comando para preguntar estado (pull) de sw1,sw2 */
 		ComandoColorFun, /* Responde al comando de la rueda de color */
 		ComandoInterruptFun, /* Responde al comando de habilitacion o deshabilitacion de interrupciones */
-		ComandoADCFun, /* Responde al comando para disparo de ADC */
-		ComandoFreqFun, /* Responde al comando de variacion de freq de muestreo */
-		ComandoTimerFun, /* Responde al comando para desactivar o activar timer */
+		ComandoADCFun,
 		ComandoNoImplementadoFun
 };
 
@@ -326,16 +277,11 @@ static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 
 							parametro.command=command;
 							//El comando esta bien pero no esta implementado
-
-						    // Protegemos com MUTEX la creación de la trama por esta tarea
-						    xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
 							numdatos=create_frame(frame,COMANDO_RECHAZADO,&parametro,sizeof(parametro),MAX_FRAME_SIZE);
 							if (numdatos>=0)
 							{
 									send_frame(frame,numdatos);
 							}
-						    // Soltamos MUTEX!!
-						    xSemaphoreGive(UART_SEMAFORO);
 						}
 						break;
 						//A�adir casos de error aqui...
@@ -361,6 +307,7 @@ static portTASK_FUNCTION( CommandProcessingTask, pvParameters ){
 	}
 }
 
+
 //SEMANA2: a�adida para facilitar el envio de datos a diversas tareas. IMPORTANTE!!! Leer los comentarios que hay abajo
 //Ojo!! Frame es global (para ahorrar memoria de pila en las tareas) --> Se deben tomar precauciones al usar esta funci�n en varias tareas
 //IDEM en lo que respecta al envio por el puerto serie desde varias tareas....
@@ -369,28 +316,27 @@ int32_t RemoteSendCommand(uint8_t comando,void *parameter,int32_t paramsize)
 {
     int32_t numdatos;
 
-    // Protegemos com MUTEX la creación de la trama por esta tarea
-    xSemaphoreTake(UART_SEMAFORO,portMAX_DELAY);
     numdatos=create_frame(frame,comando,parameter,paramsize,MAX_FRAME_SIZE);
     if (numdatos>=0)
     {
         send_frame(frame,numdatos);
     }
-    // Soltamos MUTEX!!
-    xSemaphoreGive(UART_SEMAFORO);
 
     return numdatos;
 }
 
+
 //Inicializa la tarea que recibe comandos (se debe llamar desde main())
 void RemoteInit(void)
 {
-	//
-	// Crea la tarea que gestiona los comandos USB (definidos en CommandProcessingTask)
-	//
-	if(xTaskCreate(CommandProcessingTask, (portCHAR *)"usbser",REMOTE_TASK_STACK, NULL, REMOTE_TASK_PRIORITY, NULL) != pdTRUE)
-	{
-		while(1);
-	}
+    //
+    // Crea la tarea que gestiona los comandos USB (definidos en CommandProcessingTask)
+    //
+    // Se podrian crear otras tareas e IPC que hagan falta (por ejemplo Mutex si se consideran necesarios!!!!)
+
+    if(xTaskCreate(CommandProcessingTask, (portCHAR *)"usbser",REMOTE_TASK_STACK, NULL, REMOTE_TASK_PRIORITY, NULL) != pdTRUE)
+    {
+        while(1);
+    }
 
 }
